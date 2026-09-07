@@ -1,0 +1,44 @@
+services:
+
+  # ── Nós do Cluster Sync ────────────────────────────────────────────────────
+  node0: &node_base
+    build: .
+    tty: true
+    stdin_open: true
+    environment: [ "MY_ID=0", "NEXT_NODE_HOST=node1" ]
+    volumes: [ "./logs:/app/data" ]
+    networks: [ cluster-net ]
+
+  node1:
+    <<: *node_base
+    environment: [ "MY_ID=1", "NEXT_NODE_HOST=node2" ]
+
+  node2:
+    <<: *node_base
+    environment: [ "MY_ID=2", "NEXT_NODE_HOST=node3" ]
+
+  node3:
+    <<: *node_base
+    environment: [ "MY_ID=3", "NEXT_NODE_HOST=node4" ]
+
+  node4:
+    <<: *node_base
+    environment: [ "MY_ID=4", "NEXT_NODE_HOST=node0" ]   # fecha o anel
+
+  # ── Clientes ───────────────────────────────────────────────────────────────
+  client1: &client_base
+    build: .
+    tty: true
+    command: python -u client.py
+    depends_on: [ node0, node1, node2, node3, node4 ]
+    environment: [ "CLIENT_ID=101", "TARGET_NODE_HOST=node0", "TARGET_NODE_PORT=8080" ]
+    networks: [ cluster-net ]
+
+  client2: { <<: *client_base, environment: [ "CLIENT_ID=102", "TARGET_NODE_HOST=node1", "TARGET_NODE_PORT=8080" ] }
+  client3: { <<: *client_base, environment: [ "CLIENT_ID=103", "TARGET_NODE_HOST=node2", "TARGET_NODE_PORT=8080" ] }
+  client4: { <<: *client_base, environment: [ "CLIENT_ID=104", "TARGET_NODE_HOST=node3", "TARGET_NODE_PORT=8080" ] }
+  client5: { <<: *client_base, environment: [ "CLIENT_ID=105", "TARGET_NODE_HOST=node4", "TARGET_NODE_PORT=8080" ] }
+
+networks:
+  cluster-net:
+    driver: bridge
